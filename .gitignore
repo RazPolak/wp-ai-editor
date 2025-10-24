@@ -1,0 +1,60 @@
+# Environment variables
+.env
+
+# Docker volumes data
+.data/
+
+# WordPress core uploads and cache
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/cache/
+
+# Default WordPress plugins (not needed for POC)
+wp-content/plugins/akismet/
+wp-content/plugins/hello.php
+
+# Default WordPress themes (not needed for POC)
+wp-content/themes/twenty*/
+
+# WordPress index.php files
+wp-content/plugins/index.php
+wp-content/themes/index.php
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node modules (for future use)
+node_modules/
+
+# Composer (for future use)
+vendor/
+
+# MCP Credentials
+.mcp-credentials
+
+# Claude Desktop config (contains credentials)
+claude-desktop-config.json
+
+# Next.js
+.next/
+out/
+build/
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+
+# Backup directory
+_backup/
+
+# Sample data imports (large CSV files)
+data/

@@ -1,0 +1,46 @@
+<?php
+/**
+ * Plugin Name: Debug MCP Init
+ * Description: Debug MCP initialization
+ * Version: 1.0.0
+ */
+
+// Log when this MU plugin loads
+error_log('[DEBUG] MU Plugin loaded: debug-mcp-init.php');
+
+// Hook into rest_api_init to check state
+add_action('rest_api_init', function() {
+    error_log('[DEBUG] rest_api_init fired');
+    
+    // Check if abilities exist
+    $abilities = wp_get_abilities();
+    error_log('[DEBUG] Abilities count: ' . count($abilities));
+    
+    // Check if MCP adapter instance exists
+    if (class_exists('\WP\MCP\Core\McpAdapter')) {
+        $adapter = \WP\MCP\Core\McpAdapter::instance();
+        $servers = $adapter->get_servers();
+        error_log('[DEBUG] MCP servers count: ' . count($servers));
+        
+        foreach ($servers as $server_id => $server) {
+            error_log('[DEBUG] MCP Server: ' . $server_id . ' - ' . $server->get_server_route_namespace() . '/' . $server->get_server_route());
+        }
+    }
+}, 20002); // After MCP adapter init (20000)
+
+// Check what's hooked to mcp_adapter_init
+add_action('rest_api_init', function() {
+    global $wp_filter;
+    
+    if (isset($wp_filter['mcp_adapter_init'])) {
+        error_log('[DEBUG] mcp_adapter_init hook has callbacks');
+        foreach ($wp_filter['mcp_adapter_init']->callbacks as $priority => $callbacks) {
+            error_log('[DEBUG]   Priority ' . $priority . ': ' . count($callbacks) . ' callbacks');
+        }
+    } else {
+        error_log('[DEBUG] mcp_adapter_init hook has NO callbacks');
+    }
+    
+    // Check if did_action fired
+    error_log('[DEBUG] did_action(mcp_adapter_init): ' . did_action('mcp_adapter_init'));
+}, 20003);

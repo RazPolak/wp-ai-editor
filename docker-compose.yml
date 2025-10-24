@@ -1,0 +1,268 @@
+# version is obsolete and removed per Docker Compose specification
+
+services:
+  db:
+    image: mariadb:latest
+    command: '--default-authentication-plugin=mysql_native_password'
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wordpress}
+      MYSQL_USER: ${MYSQL_USER:-wordpress}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+    networks:
+      - wordpress-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wordpress:
+    image: wordpress:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - wp_data:/var/www/html
+      - ./wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wp-content/themes:/var/www/html/wp-content/themes
+      - ./wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
+      - ./composer.json:/var/www/html/composer.json
+      - wp_vendor:/var/www/html/vendor
+    ports:
+      - "${WP_PORT:-8000}:80"
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
+      WORDPRESS_DEBUG: ${WP_DEBUG:-1}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_MEMORY_LIMIT', '256M');
+        define('WP_MAX_MEMORY_LIMIT', '512M');
+        define('WP_CACHE', false);
+        define('ALLOW_UNFILTERED_UPLOADS', true);
+    networks:
+      - wordpress-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  wpcli:
+    image: wordpress:cli
+    user: '33'  # www-data user
+    depends_on:
+      wordpress:
+        condition: service_healthy
+    volumes:
+      - wp_data:/var/www/html
+      - ./wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wp-content/themes:/var/www/html/wp-content/themes
+      - ./wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
+      - ./composer.json:/var/www/html/composer.json
+      - wp_vendor:/var/www/html/vendor
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
+    networks:
+      - wordpress-network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    depends_on:
+      - db
+    ports:
+      - "${PMA_PORT:-8080}:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+    networks:
+      - wordpress-network
+
+  # Production Database
+  db_production:
+    image: mariadb:latest
+    command: '--default-authentication-plugin=mysql_native_password'
+    volumes:
+      - db_production_data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wordpress}
+      MYSQL_USER: ${MYSQL_USER:-wordpress}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+    networks:
+      - wordpress-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Production WordPress
+  wordpress_production:
+    image: wordpress:latest
+    depends_on:
+      db_production:
+        condition: service_healthy
+    volumes:
+      - wp_production_data:/var/www/html
+      - ./wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wp-content/themes:/var/www/html/wp-content/themes
+      - ./wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
+      - ./composer.json:/var/www/html/composer.json
+      - wp_production_vendor:/var/www/html/vendor
+    ports:
+      - "8001:80"  # Different port for production
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db_production  # Point to production DB
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
+      WORDPRESS_DEBUG: ${WP_DEBUG:-1}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_MEMORY_LIMIT', '256M');
+        define('WP_MAX_MEMORY_LIMIT', '512M');
+        define('WP_CACHE', false);
+        define('ALLOW_UNFILTERED_UPLOADS', true);
+    networks:
+      - wordpress-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Production WP-CLI
+  wpcli_production:
+    image: wordpress:cli
+    user: '33'
+    depends_on:
+      wordpress_production:
+        condition: service_healthy
+    volumes:
+      - wp_production_data:/var/www/html
+      - ./wp-content/plugins:/var/www/html/wp-content/plugins
+      - ./wp-content/themes:/var/www/html/wp-content/themes
+      - ./wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
+      - ./composer.json:/var/www/html/composer.json
+      - wp_production_vendor:/var/www/html/vendor
+    environment:
+      WORDPRESS_DB_HOST: db_production
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
+    networks:
+      - wordpress-network
+
+  # Real Site Mimic Database
+  db_real_site:
+    image: mariadb:latest
+    command: '--default-authentication-plugin=mysql_native_password'
+    volumes:
+      - db_real_site_data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wordpress}
+      MYSQL_USER: ${MYSQL_USER:-wordpress}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+    networks:
+      - wordpress-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Real Site Mimic WordPress - Pre-configured with realistic ecommerce data
+  wordpress_real_site:
+    image: wordpress:latest
+    depends_on:
+      db_real_site:
+        condition: service_healthy
+    volumes:
+      - wp_real_site_data:/var/www/html
+      - wp_real_site_plugins:/var/www/html/wp-content/plugins
+      - wp_real_site_themes:/var/www/html/wp-content/themes
+      - ./wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
+      - ./composer.json:/var/www/html/composer.json
+      - wp_real_site_vendor:/var/www/html/vendor
+      - ./scripts/setup/init-real-site.sh:/usr/local/bin/init-real-site.sh
+      - ./data:/tmp/import-data
+    ports:
+      - "8002:80"  # Real site mimic on port 8002
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db_real_site
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
+      WORDPRESS_DEBUG: ${WP_DEBUG:-1}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_MEMORY_LIMIT', '256M');
+        define('WP_MAX_MEMORY_LIMIT', '512M');
+        define('WP_CACHE', false);
+        define('ALLOW_UNFILTERED_UPLOADS', true);
+    networks:
+      - wordpress-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Real Site WP-CLI
+  wpcli_real_site:
+    image: wordpress:cli
+    user: '33'
+    depends_on:
+      wordpress_real_site:
+        condition: service_healthy
+    volumes:
+      - wp_real_site_data:/var/www/html
+      - wp_real_site_plugins:/var/www/html/wp-content/plugins
+      - wp_real_site_themes:/var/www/html/wp-content/themes
+      - ./wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
+      - ./composer.json:/var/www/html/composer.json
+      - wp_real_site_vendor:/var/www/html/vendor
+      - ./data:/tmp/import-data
+      - ./scripts/setup/init-real-site.sh:/usr/local/bin/init-real-site.sh
+    environment:
+      WORDPRESS_DB_HOST: db_real_site
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
+    networks:
+      - wordpress-network
+
+volumes:
+  db_data:
+  wp_data:
+  wp_vendor:
+  # Production volumes
+  db_production_data:
+  wp_production_data:
+  wp_production_vendor:
+  # Real Site Mimic volumes (isolated from main instances)
+  db_real_site_data:
+  wp_real_site_data:
+  wp_real_site_vendor:
+  wp_real_site_plugins:
+  wp_real_site_themes:
+
+networks:
+  wordpress-network:
+    driver: bridge

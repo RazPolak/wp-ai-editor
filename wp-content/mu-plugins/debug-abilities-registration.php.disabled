@@ -1,0 +1,34 @@
+<?php
+/**
+ * Plugin Name: Debug Abilities Registration
+ * Description: Debug helper to understand abilities registration timing
+ * Version: 1.0.0
+ */
+
+// Log before abilities_api_init
+add_action('plugins_loaded', function() {
+    error_log('[DEBUG] plugins_loaded: did_action(abilities_api_init) = ' . did_action('abilities_api_init'));
+    error_log('[DEBUG] plugins_loaded: function_exists(wp_register_ability) = ' . (function_exists('wp_register_ability') ? 'yes' : 'no'));
+}, 5);
+
+// Log when abilities_api_init fires
+add_action('abilities_api_init', function() {
+    error_log('[DEBUG] abilities_api_init FIRED: did_action(abilities_api_init) = ' . did_action('abilities_api_init'));
+}, 1);
+
+// Log after abilities_api_init
+add_action('abilities_api_init', function() {
+    error_log('[DEBUG] abilities_api_init (priority 999): did_action(abilities_api_init) = ' . did_action('abilities_api_init'));
+
+    // Try registering a test ability
+    $result = wp_register_ability('test/ability', [
+        'label' => 'Test',
+        'description' => 'Test ability',
+        'input_schema' => ['type' => 'object', 'properties' => []],
+        'output_schema' => ['type' => 'object', 'properties' => []],
+        'execute_callback' => function($input) { return ['success' => true]; },
+        'permission_callback' => function($input) { return true; },
+    ]);
+
+    error_log('[DEBUG] Test ability registration result: ' . ($result ? 'SUCCESS' : 'FAILED (null)'));
+}, 999);
